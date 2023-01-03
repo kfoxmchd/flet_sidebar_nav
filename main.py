@@ -1,248 +1,278 @@
 import flet
 from flet import *
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+APIKEY = os.getenv("APIKEY")
 
 
-class MainContainer(UserControl):
+class AppTitle(UserControl):
     def __init__(self):
         super().__init__()
 
+    def InputContainer(self, width: str, text: str):
+        return Container(
+            width=width,
+            height=40,
+            bgcolor="white10",
+            border_radius=8,
+            padding=8,
+            content=Row(
+                spacing=10,
+                vertical_alignment=CrossAxisAlignment.CENTER,
+                controls=[
+                    Icon(
+                        name=icons.SEARCH_ROUNDED,
+                        size=17,
+                        opacity=0.85,
+                    ),
+                    TextField(
+                        border_color="transparent",
+                        height=20,
+                        text_size=14,
+                        content_padding=0,
+                        cursor_color="white",
+                        cursor_width=1,
+                        color="white",
+                        hint_text="Search",
+                    ),
+                ],
+            ),
+        )
+
     def build(self):
         return Container(
-            width=275,
-            height=60,
-            border_radius=11,
+            padding=padding.only(top=20, left=15, right=15),
             content=Column(
-                spacing=5,
                 horizontal_alignment=CrossAxisAlignment.CENTER,
                 controls=[
                     Text(
-                        "Modern Dropdown Control in Flet",
-                        size=10,
-                        weight="w400",
-                        color="white54",
-                    ),
-                    Text(
-                        "Line Indent",
-                        size=30,
+                        "IMDb Movies & Shows",
+                        size=15,
                         weight="bold",
+                        text_align="center",
                     ),
+                    Divider(height=5, color="transparent"),
+                    self.InputContainer(280, "Search"),
+                    Divider(height=20, color="white12"),
                 ],
             ),
         )
 
 
-class DropDownContainer(UserControl):
-    def __init__(
-        self,
-        initials: str,
-        name: str,
-        gen: str,
-        title: str,
-        description: str,
-        salary: str,
-    ):
-        self.initials = initials
-        self.name = name
-        self.gen = gen
-        self.title = title
-        self.description = description
-        self.salary = salary
+class ComingSoon(UserControl):
+    def __init__(self):
         super().__init__()
 
-    def ExpandContainer(self, e):
-        if self.controls[0].height != 180:
-            self.controls[0].height = 180
-            self.controls[0].update()
-        else:
-            self.controls[0].height = 90
-            self.controls[0].update()
-
-    def TopContainer(self):
-        return Container(
-            width=265,
-            height=70,
-            content=Column(
-                spacing=0,
-                controls=[
-                    Row(
-                        controls=[
-                            Container(
-                                width=40,
-                                height=40,
-                                bgcolor="white24",
-                                border_radius=40,
-                                alignment=alignment.center,
-                                content=Text(
-                                    self.initials,
-                                    size=11,
-                                    weight="bold",
-                                ),
-                            ),
-                            VerticalDivider(width=2),
-                            Container(
-                                content=Column(
-                                    spacing=1,
-                                    alignment=MainAxisAlignment.CENTER,
-                                    controls=[
-                                        Text(
-                                            self.name,
-                                            size=11,
-                                        ),
-                                        Text(
-                                            self.gen,
-                                            size=9,
-                                            color="white54",
-                                        ),
-                                    ],
-                                ),
-                            ),
-                        ],
-                    ),
-                    Row(
-                        alignment=MainAxisAlignment.END,
-                        vertical_alignment=CrossAxisAlignment.START,
-                        controls=[
-                            Container(
-                                content=IconButton(
-                                    icon=icons.ARROW_DROP_DOWN_CIRCLE_SHARP,
-                                    icon_size=20,
-                                    on_click=lambda e: self.ExpandContainer(e),
-                                )
-                            ),
-                        ],
-                    ),
-                ],
-            ),
+    def ComingSoonTitle(self):
+        res = requests.get("https://imdb-api.com/en/API/ComingSoon/" + APIKEY)
+        self.movie_list = GridView(
+            expand=True,
+            child_aspect_ratio=1.65,
+            horizontal=True,
         )
 
-    def GetEmployeeData(self):
-        items = [
-            ["Job Title", self.title],
-            ["Description", self.description],
-            ["Salary", self.salary],
-        ]
-        l = []
-        for item in items:
-            l.append(
-                Row(
+        for movie in range(len(res.json()["items"]) - 112):
+            self.movie_list.controls.append(
+                Column(
+                    horizontal_alignment=CrossAxisAlignment.CENTER,
                     controls=[
-                        Column(
-                            expand=1,
-                            horizontal_alignment=CrossAxisAlignment.START,
-                            controls=[
-                                Text(
-                                    item[0],
-                                    size=9,
-                                    weight="bold",
-                                )
-                            ],
+                        Container(
+                            expand=9,
+                            border_radius=12,
+                            bgcolor="white10",
+                            image_fit=ImageFit.FILL,
+                            image_src=res.json()["items"][movie]["image"],
                         ),
                         Column(
+                            horizontal_alignment=CrossAxisAlignment.CENTER,
                             expand=2,
-                            horizontal_alignment=CrossAxisAlignment.END,
+                            spacing=2,
                             controls=[
                                 Text(
-                                    item[1],
-                                    size=9,
-                                    weight="bold",
+                                    res.json()["items"][movie]["title"],
+                                    size=11,
+                                    no_wrap=True,
+                                ),
+                                Text(
+                                    res.json()["items"][movie]["releaseState"],
+                                    size=10,
                                     color="white54",
-                                )
+                                ),
                             ],
                         ),
                     ],
                 ),
             )
-        return l
 
-    def BottomContainer(self):
-        title, description, salary = self.GetEmployeeData()
-        return Container(
-            width=265,
-            height=100,
-            content=Column(
-                spacing=15,
-                controls=[
-                    title,
-                    description,
-                    salary,
-                ],
-            ),
-        )
+        return self.movie_list
 
     def build(self):
         return Container(
-            width=275,
-            height=90,
-            bgcolor="white10",
-            border_radius=11,
-            animate=animation.Animation(400, "decelerate"),
-            padding=padding.only(left=10, right=10, top=10),
-            clip_behavior=ClipBehavior.HARD_EDGE,  # probably uses a lot of CPU => costly to run
+            width=280,
+            height=240,
             content=Column(
-                horizontal_alignment=CrossAxisAlignment.CENTER,
                 controls=[
-                    self.TopContainer(),
-                    self.BottomContainer(),
+                    Row(
+                        controls=[
+                            Text(
+                                "Coming Soon",
+                                size=14,
+                            ),
+                        ]
+                    ),
+                    self.ComingSoonTitle(),
+                ]
+            ),
+        )
+
+
+class TopTvShows(UserControl):
+    def __init__(self):
+        super().__init__()
+
+    def TrendingTVShows(self):
+        res = requests.get("https://imdb-api.com/API/MostPopularTVs/" + APIKEY)
+
+        self.tv_list = GridView(
+            child_aspect_ratio=1.2,
+            expand=True,
+            horizontal=True,
+            spacing=25,
+        )
+
+        for show in range(len(res.json()["items"]) - 80):
+            self.tv_list.controls.append(
+                Column(
+                    horizontal_alignment=CrossAxisAlignment.CENTER,
+                    controls=[
+                        Container(
+                            expand=9,
+                            border_radius=10,
+                            image_fit=ImageFit.FILL,
+                            image_src=res.json()["items"][show]["image"],
+                            on_hover=lambda e: self.GetVideo(e),
+                        ),
+                        Column(
+                            horizontal_alignment=CrossAxisAlignment.CENTER,
+                            expand=2,
+                            spacing=2,
+                            controls=[
+                                Row(
+                                    alignment=MainAxisAlignment.SPACE_BETWEEN,
+                                    spacing=0,
+                                    controls=[
+                                        Text(
+                                            res.json()["items"][show]["title"], size=11
+                                        ),
+                                        Text(
+                                            res.json()["items"][show]["year"],
+                                            size=10,
+                                            color="white54",
+                                        ),
+                                    ],
+                                ),
+                                Row(
+                                    alignment=MainAxisAlignment.START,
+                                    spacing=2,
+                                    controls=[
+                                        Icon(
+                                            icons.STAR_RATE_ROUNDED,
+                                            size=13,
+                                            color="yellow600",
+                                        ),
+                                        Text(
+                                            res.json()["items"][show]["imDbRating"],
+                                            size=11,
+                                            color="white54",
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            )
+        return self.tv_list
+
+    def build(self):
+        return Container(
+            width=280,
+            height=240,
+            clip_behavior=ClipBehavior.HARD_EDGE,
+            content=Column(
+                controls=[
+                    Row(
+                        controls=[
+                            Text(
+                                "Trending TV Shows",
+                                size=14,
+                            ),
+                        ]
+                    ),
+                    self.TrendingTVShows(),
                 ],
             ),
         )
 
 
 def main(page: Page):
-    page.title = "Flet Modern Dropdown"
-    page.vertical_alignment = MainAxisAlignment.CENTER
+    page.title = "Flet UI With IMDb API"
     page.horizontal_alignment = CrossAxisAlignment.CENTER
+    page.vertical_alignment = MainAxisAlignment.CENTER
+    page.bgcolor = "white"
 
-    main_container = Container(
+    _main_ = Container(
         width=280,
         height=600,
-        bgcolor="black",
-        border_radius=40,
-        padding=20,
+        border=border.all(1, "black"),
+        padding=10,
+        clip_behavior=ClipBehavior.HARD_EDGE,
         content=Column(
-            scroll="hidden",
+            scroll="none",
+            horizontal_alignment=CrossAxisAlignment.CENTER,
             controls=[
-                Divider(height=20, color="transparent"),
-                MainContainer(),
-                Divider(height=30, color="white24"),
-                Text("Employees", size=12),
-                DropDownContainer(
-                    "J.S",
-                    "James T. Smith",
-                    "Engineer",
-                    "Senior Softeware Engineer II",
-                    "Full Stack",
-                    "$120,000",
-                ),
-                DropDownContainer(
-                    "B.B",
-                    "Brandon R. Boyd",
-                    "Engineer",
-                    "Junior Softeware Engineer",
-                    "Front End",
-                    "$90,000",
-                ),
-                DropDownContainer(
-                    "K.W",
-                    "Kevin E. White",
-                    "Designer",
-                    "UI/UX Engineer",
-                    "Front End",
-                    "$95,000",
-                ),
-                DropDownContainer(
-                    "A.H",
-                    "Alta M. Howard",
-                    "Engineer",
-                    "Junior Softeware Engineer",
-                    "Back End",
-                    "$115,000",
+                AppTitle(),
+                Container(
+                    expand=True,
+                    padding=10,
+                    content=Column(
+                        scroll="hidden",
+                        controls=[
+                            ComingSoon(),
+                            Divider(height=10, color="white10"),
+                            TopTvShows(),
+                            Container(),
+                        ],
+                    ),
                 ),
             ],
         ),
+        gradient=RadialGradient(
+            center=Alignment(-0.5, -0.8),
+            radius=3,
+            colors=[
+                # "#42445f",
+                # "#393b52",
+                "#33354a",
+                "#2f3143",
+                "#2f3143",
+                "#292b3c",
+                "#222331",
+                "#222331",
+                "#1a1a25",
+                "#1a1b26",
+                "#1a1b26",
+                "#21222f",
+                "#1d1e2a",
+                "black",
+            ],
+        ),
+        border_radius=30,
     )
-
-    page.add(main_container)
+    page.add(_main_)
     page.update()
 
 
