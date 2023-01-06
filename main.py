@@ -1,279 +1,332 @@
 import flet
 from flet import *
-import requests
-from dotenv import load_dotenv
-
-load_dotenv()
-
-APIKEY = os.getenv("APIKEY")
+import sqlite3
+from datetime import datetime
 
 
-class AppTitle(UserControl):
-    def __init__(self):
+class Database:
+    def ConnectToDatabase():
+        try:
+            db = sqlite3.connect("todo.db")
+            c = db.cursor()
+            c.execute(
+                "CREATE TABLE if not exists tasks(id INTEGER PRIMARY KEY, Task VARCHAR(255) NOT NULL, Date VARCHAR(255) NOT NULL)"
+            )
+            return db
+        except Exception as e:
+            print(e)
+
+    def ReadDatabase(db):
+        c = db.cursor()
+        c.execute("SELECT Task, Date FROM tasks")
+        records = c.fetchall()
+        return records
+
+    def InsertIntoDatabase(db, values):
+        c = db.cursor()
+        c.execute("INSERT INTO tasks (Task, Date) VALUES (?, ?)", values)
+        db.commit()
+
+    def DeleteTaskFromDatabase(db, value):
+        c = db.cursor()
+        c.execute(""" DELETE FROM tasks WHERE Task=?""", value)
+        db.commit()
+
+    def UpdateTaskInDatabase(db, value):
+        c = db.cursor()
+        c.execute("Update tasks SET Task=? WHERE Task=?", value)
+        db.commit()
+
+
+class FormContainer(UserControl):
+    def __init__(self, func):
+        self.func = func
         super().__init__()
-
-    def InputContainer(self, width: str, text: str):
-        return Container(
-            width=width,
-            height=40,
-            bgcolor="white10",
-            border_radius=8,
-            padding=8,
-            content=Row(
-                spacing=10,
-                vertical_alignment=CrossAxisAlignment.CENTER,
-                controls=[
-                    Icon(
-                        name=icons.SEARCH_ROUNDED,
-                        size=17,
-                        opacity=0.85,
-                    ),
-                    TextField(
-                        border_color="transparent",
-                        height=20,
-                        text_size=14,
-                        content_padding=0,
-                        cursor_color="white",
-                        cursor_width=1,
-                        color="white",
-                        hint_text="Search",
-                    ),
-                ],
-            ),
-        )
 
     def build(self):
         return Container(
-            padding=padding.only(top=20, left=15, right=15),
+            width=280,
+            height=80,
+            opacity=0,
+            gradient=LinearGradient(
+                begin=alignment.bottom_left,
+                end=alignment.top_right,
+                colors=["bluegrey300", "bluegrey400", "bluegrey500", "bluegrey700"],
+            ),
+            border_radius=40,
+            margin=margin.only(left=-20, right=-20),
+            animate=animation.Animation(400, "decelerate"),
+            animate_opacity=200,
+            clip_behavior=ClipBehavior.HARD_EDGE,
+            padding=padding.only(top=45, bottom=45),
             content=Column(
                 horizontal_alignment=CrossAxisAlignment.CENTER,
                 controls=[
-                    Text(
-                        "IMDb Movies & Shows",
-                        size=15,
-                        weight="bold",
-                        text_align="center",
+                    TextField(
+                        height=48,
+                        width=255,
+                        text_size=12,
+                        color="black",
+                        border_radius=8,
+                        bgcolor="#f0f3f6",
+                        border_color="transparent",
+                        filled=True,
+                        cursor_color="black",
+                        cursor_width=1,
+                        hint_text="Description...",
+                        hint_style=TextStyle(
+                            size=11,
+                            color="black",
+                        ),
                     ),
-                    Divider(height=5, color="transparent"),
-                    self.InputContainer(280, "Search"),
-                    Divider(height=20, color="white12"),
+                    IconButton(
+                        content=Text("Add Task"),
+                        width=180,
+                        height=44,
+                        style=ButtonStyle(
+                            bgcolor={"": "black"},
+                            shape={"": RoundedRectangleBorder(radius=8)},
+                        ),
+                        on_click=self.func,
+                    ),
                 ],
             ),
         )
 
 
-class ComingSoon(UserControl):
-    def __init__(self):
+class CreateTask(UserControl):
+    def __init__(self, task: str, date: str, func1, func2):
+        self.task = task
+        self.date = date
+        self.func1 = func1
+        self.func2 = func2
         super().__init__()
 
-    def ComingSoonTitle(self):
-        res = requests.get("https://imdb-api.com/en/API/ComingSoon/" + APIKEY)
-        self.movie_list = GridView(
-            expand=True,
-            child_aspect_ratio=1.65,
-            horizontal=True,
+    def ShowIcons(self, e):
+        if e.data == "true":
+            (
+                e.control.content.controls[1].controls[0].opacity,
+                e.control.content.controls[1].controls[1].opacity,
+            ) = (1, 1)
+
+            e.control.content.update()
+        else:
+            (
+                e.control.content.controls[1].controls[0].opacity,
+                e.control.content.controls[1].controls[1].opacity,
+            ) = (0, 0)
+
+            e.control.content.update()
+
+    def GetContainerInstnace(self, e):
+        return self
+
+    def TaskDeleteEdit(self, name, color, func):
+        return IconButton(
+            icon=name,
+            width=30,
+            icon_size=18,
+            icon_color=color,
+            opacity=0,
+            animate_opacity=200,
+            on_click=lambda e: func(self.GetContainerInstnace(e)),
         )
-
-        for movie in range(len(res.json()["items"]) - 112):
-            self.movie_list.controls.append(
-                Column(
-                    horizontal_alignment=CrossAxisAlignment.CENTER,
-                    controls=[
-                        Container(
-                            expand=9,
-                            border_radius=12,
-                            bgcolor="white10",
-                            image_fit=ImageFit.FILL,
-                            image_src=res.json()["items"][movie]["image"],
-                        ),
-                        Column(
-                            horizontal_alignment=CrossAxisAlignment.CENTER,
-                            expand=2,
-                            spacing=2,
-                            controls=[
-                                Text(
-                                    res.json()["items"][movie]["title"],
-                                    size=11,
-                                    no_wrap=True,
-                                ),
-                                Text(
-                                    res.json()["items"][movie]["releaseState"],
-                                    size=10,
-                                    color="white54",
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-            )
-
-        return self.movie_list
 
     def build(self):
         return Container(
             width=280,
-            height=240,
-            content=Column(
-                controls=[
-                    Row(
-                        controls=[
-                            Text(
-                                "Coming Soon",
-                                size=14,
-                            ),
-                        ]
-                    ),
-                    self.ComingSoonTitle(),
-                ]
-            ),
-        )
-
-
-class TopTvShows(UserControl):
-    def __init__(self):
-        super().__init__()
-
-    def TrendingTVShows(self):
-        res = requests.get("https://imdb-api.com/API/MostPopularTVs/" + APIKEY)
-
-        self.tv_list = GridView(
-            child_aspect_ratio=1.2,
-            expand=True,
-            horizontal=True,
-            spacing=25,
-        )
-
-        for show in range(len(res.json()["items"]) - 80):
-            self.tv_list.controls.append(
-                Column(
-                    horizontal_alignment=CrossAxisAlignment.CENTER,
-                    controls=[
-                        Container(
-                            expand=9,
-                            border_radius=10,
-                            image_fit=ImageFit.FILL,
-                            image_src=res.json()["items"][show]["image"],
-                            on_hover=lambda e: self.GetVideo(e),
-                        ),
-                        Column(
-                            horizontal_alignment=CrossAxisAlignment.CENTER,
-                            expand=2,
-                            spacing=2,
-                            controls=[
-                                Row(
-                                    alignment=MainAxisAlignment.SPACE_BETWEEN,
-                                    spacing=0,
-                                    controls=[
-                                        Text(
-                                            res.json()["items"][show]["title"], size=11
-                                        ),
-                                        Text(
-                                            res.json()["items"][show]["year"],
-                                            size=10,
-                                            color="white54",
-                                        ),
-                                    ],
-                                ),
-                                Row(
-                                    alignment=MainAxisAlignment.START,
-                                    spacing=2,
-                                    controls=[
-                                        Icon(
-                                            icons.STAR_RATE_ROUNDED,
-                                            size=13,
-                                            color="yellow600",
-                                        ),
-                                        Text(
-                                            res.json()["items"][show]["imDbRating"],
-                                            size=11,
-                                            color="white54",
-                                        ),
-                                    ],
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-            )
-        return self.tv_list
-
-    def build(self):
-        return Container(
-            width=280,
-            height=240,
+            height=60,
+            border=border.all(0.85, "white54"),
+            border_radius=8,
+            on_hover=lambda e: self.ShowIcons(e),
             clip_behavior=ClipBehavior.HARD_EDGE,
-            content=Column(
+            padding=10,
+            content=Row(
+                alignment=MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
-                    Row(
+                    Column(
+                        spacing=1,
+                        alignment=MainAxisAlignment.CENTER,
                         controls=[
-                            Text(
-                                "Trending TV Shows",
-                                size=14,
-                            ),
-                        ]
+                            Text(value=self.task, size=10, overflow="fade"),
+                            Text(value=self.date, size=9, color="white54"),
+                        ],
                     ),
-                    self.TrendingTVShows(),
+                    Row(
+                        spacing=0,
+                        alignment=MainAxisAlignment.END,
+                        controls=[
+                            self.TaskDeleteEdit(
+                                icons.DELETE_ROUNDED,
+                                "red700",
+                                self.func1,
+                            ),
+                            self.TaskDeleteEdit(
+                                icons.EDIT_ROUNDED,
+                                "white70",
+                                self.func2,
+                            ),
+                        ],
+                    ),
                 ],
             ),
         )
 
 
 def main(page: Page):
-    page.title = "Flet UI With IMDb API"
-    page.horizontal_alignment = CrossAxisAlignment.CENTER
-    page.vertical_alignment = MainAxisAlignment.CENTER
-    page.bgcolor = "white"
+    page.vertical_alignment = "center"
+    page.horizontal_alignment = "center"
 
-    _main_ = Container(
-        width=280,
-        height=600,
-        border=border.all(1, "black"),
-        padding=10,
-        clip_behavior=ClipBehavior.HARD_EDGE,
-        content=Column(
-            scroll="none",
-            horizontal_alignment=CrossAxisAlignment.CENTER,
-            controls=[
-                AppTitle(),
-                Container(
-                    expand=True,
-                    padding=10,
-                    content=Column(
-                        scroll="hidden",
-                        controls=[
-                            ComingSoon(),
-                            Divider(height=10, color="white10"),
-                            TopTvShows(),
-                            Container(),
-                        ],
+    def AddTaskToScreen(e):
+        #
+        dateTime = datetime.now().strftime("%b %d, %Y  %H:%M")
+        # #
+        db = Database.ConnectToDatabase()
+        Database.InsertIntoDatabase(db, (form.content.controls[0].value, dateTime))
+        db.close()
+
+        if form.content.controls[0].value:
+            _main_column_.controls.append(
+                CreateTask(
+                    form.content.controls[0].value,
+                    dateTime,
+                    DeleteFunction,
+                    UpdateFunction,
+                )
+            )
+            _main_column_.update()
+            # call the animation function for the form
+            CreateToDoTask(e)
+        else:
+            db.close()
+            pass
+
+    def DeleteFunction(e):
+        #
+        db = Database.ConnectToDatabase()
+        Database.DeleteTaskFromDatabase(
+            db, (e.controls[0].content.controls[0].controls[0].value,)
+        )
+        db.close()
+        #
+        _main_column_.controls.remove(e)
+        _main_column_.update()
+
+    def UpdateFunction(e):
+        form.height, form.opacity = 200, 1
+
+        (
+            form.content.controls[0].value,
+            form.content.controls[1].content.value,
+            form.content.controls[1].on_click,
+        ) = (
+            e.controls[0].content.controls[0].controls[0].value,
+            "Update Task",
+            lambda _: FinalizeUpdate(e),
+        )
+        form.update()
+
+    def FinalizeUpdate(e):
+        #
+        db = Database.ConnectToDatabase()
+        Database.UpdateTaskInDatabase(
+            db,
+            (
+                form.content.controls[0].value,
+                e.controls[0].content.controls[0].controls[0].value,
+            ),
+        )
+        #
+        e.controls[0].content.controls[0].controls[0].value = form.content.controls[
+            0
+        ].value
+        e.controls[0].content.update()
+        CreateToDoTask(e)
+
+    def CreateToDoTask(e):
+        if form.height != 200:
+            form.height, form.opacity = 200, 1
+            form.update()
+        else:
+            form.height, form.opacity = 80, 0
+            form.content.controls[0].value = None
+            form.content.controls[1].content.value = "Add Task"
+            form.content.controls[1].on_click = lambda e: AddTaskToScreen(e)
+            form.update()
+
+    _main_column_ = Column(
+        scroll="hidden",
+        expand=True,
+        alignment=MainAxisAlignment.START,
+        controls=[
+            Row(
+                alignment=MainAxisAlignment.SPACE_BETWEEN,
+                controls=[
+                    Text(
+                        "To-Do Items",
+                        size=18,
+                        weight="bold",
                     ),
-                ),
-            ],
-        ),
-        gradient=RadialGradient(
-            center=Alignment(-0.5, -0.8),
-            radius=3,
-            colors=[
-                # "#42445f",
-                # "#393b52",
-                "#33354a",
-                "#2f3143",
-                "#2f3143",
-                "#292b3c",
-                "#222331",
-                "#222331",
-                "#1a1a25",
-                "#1a1b26",
-                "#1a1b26",
-                "#21222f",
-                "#1d1e2a",
-                "black",
-            ],
-        ),
-        border_radius=30,
+                    IconButton(
+                        icons.ADD_CIRCLE_ROUNDED,
+                        icon_size=18,
+                        on_click=lambda e: CreateToDoTask(e),
+                    ),
+                ],
+            ),
+            Divider(height=8, color="white24"),
+        ],
     )
-    page.add(_main_)
+
+    page.add(
+        Container(
+            width=1500,
+            height=800,
+            margin=-10,
+            bgcolor="bluegrey800",
+            alignment=alignment.center,
+            content=Row(
+                alignment=MainAxisAlignment.CENTER,
+                vertical_alignment=CrossAxisAlignment.CENTER,
+                controls=[
+                    Container(
+                        width=280,
+                        height=600,
+                        bgcolor="#0f0f0f",
+                        border=border.all(0.5, "white70"),
+                        border_radius=40,
+                        padding=padding.only(top=35, left=20, right=20),
+                        clip_behavior=ClipBehavior.HARD_EDGE,
+                        content=Column(
+                            alignment=MainAxisAlignment.SPACE_BETWEEN,
+                            expand=True,
+                            controls=[
+                                _main_column_,
+                                FormContainer(lambda e: AddTaskToScreen(e)),
+                            ],
+                        ),
+                    ),
+                ],
+            ),
+        )
+    )
     page.update()
+
+    # FormContainer() class index:
+    form = page.controls[0].content.controls[0].content.controls[1].controls[0]
+
+    # database display
+    db = Database.ConnectToDatabase()
+    for task in Database.ReadDatabase(db)[::-1]:
+        _main_column_.controls.append(
+            CreateTask(
+                task[0],
+                task[1],
+                DeleteFunction,
+                UpdateFunction,
+            )
+        )
+    _main_column_.update()
 
 
 if __name__ == "__main__":
