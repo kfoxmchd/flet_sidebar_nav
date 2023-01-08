@@ -17,10 +17,6 @@ class ModernNavBar(UserControl):
             e.control.content.controls[1].color = "black"
             e.control.content.update()
 
-    def ReturnInstance(self, e):
-        print(e)
-        # return e.control.data
-
     def ContainedIcon(self, icon_name, text, data):
         return Container(
             data=data,
@@ -28,7 +24,6 @@ class ModernNavBar(UserControl):
             height=45,
             border_radius=10,
             on_hover=lambda e: self.HighlightContainer(e),
-            # on_click=lambda e: partial(self.func, e.control.data),
             ink=True,
             content=Row(
                 controls=[
